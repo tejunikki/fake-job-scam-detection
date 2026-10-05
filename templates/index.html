@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Offer Scam Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-mark">JS</span>
+      <div class="brand-text">
+        <span class="brand-title">Job Offer Scam Detector</span>
+        <span class="brand-sub">AI-assisted screening for suspicious recruitment messages</span>
+      </div>
+    </div>
+    <div class="topbar-meta">
+      <span class="pill">TF-IDF + Logistic Regression</span>
+      <span class="pill">Runs locally</span>
+    </div>
+  </div>
+</header>
+
+<div class="privacy-banner">
+  Your message is analyzed locally by this application. Do not enter passwords, OTPs, banking credentials, or other highly sensitive information.
+</div>
+
+<main class="layout">
+
+  <!-- LEFT: INPUT PANEL -->
+  <section class="panel input-panel">
+    <h2 class="panel-title">Paste the message</h2>
+    <p class="panel-hint">Job offer email, WhatsApp text, SMS, or job description — paste it below.</p>
+
+    <textarea id="jobText" rows="12" placeholder="Paste the job offer message, email, or chat here..."></textarea>
+
+    <div class="demo-buttons">
+      <button class="btn btn-ghost" data-demo="safe">Try Safe Example</button>
+      <button class="btn btn-ghost" data-demo="suspicious">Try Suspicious Example</button>
+      <button class="btn btn-ghost" data-demo="high_risk">Try High-Risk Example</button>
+    </div>
+
+    <button id="analyzeBtn" class="btn btn-primary btn-full">Analyze Job Offer</button>
+    <p id="errorMsg" class="error-msg" hidden></p>
+
+    <div class="checklist-card">
+      <h3>Trusted Job Checklist</h3>
+      <p class="panel-hint small">Tick off what you can verify yourself:</p>
+      <ul class="checklist">
+        <li><label><input type="checkbox"> Official company website available</label></li>
+        <li><label><input type="checkbox"> Recruiter uses an official email domain</label></li>
+        <li><label><input type="checkbox"> No upfront payment requested</label></li>
+        <li><label><input type="checkbox"> Clear, specific job description</label></li>
+        <li><label><input type="checkbox"> Company information is independently verifiable</label></li>
+        <li><label><input type="checkbox"> Recruitment process feels normal, no pressure</label></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- RIGHT: RESULTS PANEL -->
+  <section class="panel results-panel" id="resultsPanel">
+
+    <div id="placeholderState" class="placeholder-state">
+      <div class="placeholder-icon">🔍</div>
+      <p>Paste a message and click <strong>Analyze Job Offer</strong> to see the AI risk assessment here.</p>
+    </div>
+
+    <div id="resultState" hidden>
+
+      <div class="result-header">
+        <div class="gauge-wrap">
+          <svg viewBox="0 0 120 120" class="gauge">
+            <circle cx="60" cy="60" r="52" class="gauge-track"></circle>
+            <circle cx="60" cy="60" r="52" class="gauge-fill" id="gaugeFill"></circle>
+          </svg>
+          <div class="gauge-center">
+            <span id="riskScoreNum">0</span>
+            <span class="gauge-max">/100</span>
+          </div>
+        </div>
+        <div class="result-summary">
+          <span class="risk-tag" id="riskBandTag">—</span>
+          <h2 id="predictionText">—</h2>
+          <p class="confidence-line">Model confidence: <strong id="confidenceText">—</strong></p>
+          <p class="disclaimer">This is an AI-based risk assessment, not a guaranteed determination. Always verify independently.</p>
+        </div>
+      </div>
+
+      <div class="action-box" id="actionBox"></div>
+
+      <div class="subsection">
+        <h3>Why this result?</h3>
+        <div id="indicatorCards" class="indicator-cards"></div>
+      </div>
+
+      <div class="subsection">
+        <h3>Indicator Score Breakdown</h3>
+        <canvas id="indicatorChart" height="140"></canvas>
+      </div>
+
+      <div class="subsection">
+        <h3>Highlighted Message</h3>
+        <div id="highlightedText" class="highlighted-box"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="subsection">
+          <h3>Link Analysis</h3>
+          <div id="linkAnalysis" class="mini-list"></div>
+        </div>
+        <div class="subsection">
+          <h3>Contact Information</h3>
+          <div id="contactAnalysis" class="mini-list"></div>
+        </div>
+      </div>
+
+      <div class="subsection">
+        <h3>Safety Recommendations</h3>
+        <ul id="safetyTips" class="safety-tips"></ul>
+      </div>
+
+    </div>
+  </section>
+</main>
+
+<!-- FULL WIDTH: HISTORY -->
+<section class="panel full-width">
+  <h2 class="panel-title">Analysis History (this session)</h2>
+  <table class="history-table">
+    <thead><tr><th>Time</th><th>Prediction</th><th>Risk Score</th></tr></thead>
+    <tbody id="historyBody">
+      {% for item in history %}
+      <tr>
+        <td>{{ item.time }}</td>
+        <td>{{ item.prediction }}</td>
+        <td><span class="risk-dot risk-{{ item.risk_band_key }}"></span>{{ item.risk_score }}/100</td>
+      </tr>
+      {% else %}
+      <tr id="noHistoryRow"><td colspan="3" class="muted">No messages analyzed yet this session.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- FULL WIDTH: HOW AI WORKS + MODEL PERFORMANCE -->
+<section class="panel full-width">
+  <h2 class="panel-title">How the AI Works</h2>
+  <div class="pipeline">
+    <span class="pipe-step">Job text</span>
+    <span class="pipe-arrow">→</span>
+    <span class="pipe-step">Text preprocessing</span>
+    <span class="pipe-arrow">→</span>
+    <span class="pipe-step">TF-IDF feature extraction</span>
+    <span class="pipe-arrow">→</span>
+    <span class="pipe-step">ML classification</span>
+    <span class="pipe-arrow">→</span>
+    <span class="pipe-step">Rule-based risk indicators</span>
+    <span class="pipe-arrow">→</span>
+    <span class="pipe-step">Explainable result</span>
+  </div>
+
+  {% if metrics %}
+  <div class="metrics-grid">
+    <div class="metric-card"><span class="metric-value">{{ (metrics.accuracy * 100) | round(1) }}%</span><span class="metric-label">Accuracy</span></div>
+    <div class="metric-card"><span class="metric-value">{{ (metrics.precision * 100) | round(1) }}%</span><span class="metric-label">Precision</span></div>
+    <div class="metric-card"><span class="metric-value">{{ (metrics.recall * 100) | round(1) }}%</span><span class="metric-label">Recall</span></div>
+    <div class="metric-card"><span class="metric-value">{{ (metrics.f1_score * 100) | round(1) }}%</span><span class="metric-label">F1-score</span></div>
+  </div>
+  <p class="panel-hint small">Computed on a held-out test split of {{ metrics.test_size }} messages ({{ metrics.train_size }} used for training), from a dataset of {{ dataset_size }} labeled messages.</p>
+  {% else %}
+  <p class="panel-hint small">Model performance metrics require a larger labeled dataset to compute a reliable held-out evaluation.</p>
+  {% endif %}
+  {% if used_fallback_data %}
+  <p class="panel-hint small">Note: dataset.csv was missing or too small, so a small demo dataset was generated automatically to keep the app runnable.</p>
+  {% endif %}
+</section>
+
+<footer class="site-footer">
+  Built for demonstration purposes. Results are AI-assisted estimates and not a substitute for independent verification.
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
